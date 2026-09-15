@@ -24,8 +24,26 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        if shortcut.matches(tauri_plugin_global_shortcut::Modifiers::empty(), tauri_plugin_global_shortcut::Code::PrintScreen) ||
+                           shortcut.matches(tauri_plugin_global_shortcut::Modifiers::CONTROL | tauri_plugin_global_shortcut::Modifiers::SHIFT, tauri_plugin_global_shortcut::Code::KeyS) {
+                            app.emit("trigger-crop-screenshot", ()).unwrap();
+                        }
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
+            // Register shortcuts manually
+            use tauri_plugin_global_shortcut::GlobalShortcutExt;
+            let ctrl_shift_s = tauri_plugin_global_shortcut::Shortcut::new(Some(tauri_plugin_global_shortcut::Modifiers::CONTROL | tauri_plugin_global_shortcut::Modifiers::SHIFT), tauri_plugin_global_shortcut::Code::KeyS);
+            let prt_scn = tauri_plugin_global_shortcut::Shortcut::new(None, tauri_plugin_global_shortcut::Code::PrintScreen);
+            
+            let _ = app.global_shortcut().register(ctrl_shift_s);
+            let _ = app.global_shortcut().register(prt_scn);
             let show_i = MenuItem::with_id(app, "show", "Ana Pencereyi Goster", true, None::<&str>)?;
             let crop_i = MenuItem::with_id(app, "crop", "Kirparak Ekran Goruntusu Al", true, None::<&str>)?;
             let full_i = MenuItem::with_id(app, "full", "Tam Ekran Goruntusu Al", true, None::<&str>)?;

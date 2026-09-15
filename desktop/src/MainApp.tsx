@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { register } from '@tauri-apps/plugin-global-shortcut';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { listen, emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
@@ -27,12 +26,6 @@ export default function MainApp() {
 
   useEffect(() => {
     const setup = async () => {
-      try {
-        await register('PrintScreen', async (e: any) => { if (e.state === 'Pressed') emit('trigger-crop-screenshot'); });
-        await register('Shift+PrintScreen', async (e: any) => { if (e.state === 'Pressed') emit('trigger-full-screenshot'); });
-        await register('CommandOrControl+Shift+S', async (e: any) => { if (e.state === 'Pressed') emit('trigger-crop-screenshot'); });
-      } catch (e) { console.error(e); }
-
       await listen('trigger-full-screenshot', async () => {
           try {
               const base64: string = await invoke('capture_screen');
