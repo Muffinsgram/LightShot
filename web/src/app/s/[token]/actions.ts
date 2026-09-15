@@ -25,11 +25,13 @@ export async function verifyScreenshotPassword(token: string, passwordAttempt: s
   }
 
   // Generate signed URL
-  const { data: { signedUrl } } = await supabase.storage
+  const { data, error } = await supabase.storage
     .from('screenshots')
     .createSignedUrl(screenshot.storage_path, 3600)
 
-  return { signedUrl }
+  if (error || !data) return { error: 'Could not generate URL' }
+
+  return { signedUrl: data.signedUrl }
 }
 
 export async function updateScreenshotSettings(id: string, token: string, updates: { expires_in_hours?: number | null, password?: string | null, description?: string | null }) {
