@@ -1,310 +1,380 @@
-import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { register } from '@tauri-apps/plugin-global-shortcut';
+import { useEffect, useState, useRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { register } from '@tauri-apps/plugin-global-shortcut';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { listen } from '@tauri-apps/api/event';
 
-// Icons as SVG components for better styling
-const PenIcon = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>;
+// Icons
 const SaveIcon = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>;
 const CloudIcon = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>;
 
 export default function App() {
   const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [token, setToken] = useState("");
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
-
-  // Drawing state
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [color, setColor] = useState("#ef4444"); // Default red
-  const lineWidth = 3;
+  const [baseImage, setBaseImage] = useState<HTMLImageElement | null>(null);
   
+  // Cropping State
+  const [isCropping, setIsCropping] = useState(false);
+  const [hasCropped, setHasCropped] = useState(false);
+  const [cropStart, setCropStart] = useState({ x: 0, y: 0 });
+  const [cropRect, setCropRect] = useState({ x: 0, y: 0, w: 0, h: 0 });
+
+  // Drawing State
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [color, setColor] = useState('#ef4444');
+  
+  // Upload State
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [token] = useState(''); // Default token if any
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingLayerRef = useRef<HTMLCanvasElement>(null); // To store drawings
+
   useEffect(() => {
-    async function setupShortcut() {
+    getCurrentWindow().hide();
+
+    const setupEvents = async () => {
       try {
-        await register('CommandOrControl+Shift+S', async (event: any) => {
-          if (event.state === 'Pressed') {
-            await takeScreenshot();
-          }
+        await register('Super+Shift+K', async (event: any) => {
+          if (event.state === 'Pressed') await takeScreenshot(false);
         });
-      } catch (err) {
-        console.error("Failed to register shortcut", err);
+        await register('CommandOrControl+Shift+K', async (event: any) => {
+          if (event.state === 'Pressed') await takeScreenshot(false);
+        });
+      } catch (e) {
+        console.error("Failed to register shortcut", e);
       }
-    }
-    setupShortcut();
+
+      await listen('trigger-crop-screenshot', () => {
+          takeScreenshot(false);
+      });
+      await listen('trigger-full-screenshot', () => {
+          takeScreenshot(true);
+      });
+    };
+    
+    setupEvents();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') resetApp();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
-  useEffect(() => {
-    if (screenshot && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+  const resetApp = async () => {
+    setScreenshot(null);
+    setBaseImage(null);
+    setHasCropped(false);
+    setIsCropping(false);
+    setCropRect({ x: 0, y: 0, w: 0, h: 0 });
+    setUploadedUrl(null);
+    
+    const win = getCurrentWindow();
+    await win.hide();
+  };
+
+  const takeScreenshot = async (isFull: boolean) => {
+    try {
+      resetApp();
+      const base64: string = await invoke('capture_screen');
+      const dataUrl = `data:image/png;base64,${base64}`;
+      setScreenshot(dataUrl);
 
       const img = new Image();
       img.onload = () => {
-        const maxWidth = window.innerWidth - 120;
-        const maxHeight = window.innerHeight - 120;
+        setBaseImage(img);
         
-        // Calculate scale to fit within the viewport
-        const scaleX = maxWidth / img.width;
-        const scaleY = maxHeight / img.height;
-        const scale = Math.min(1, Math.min(scaleX, scaleY));
+        if (isFull) {
+            setHasCropped(true);
+            const fullRect = { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
+            setCropRect(fullRect);
+            renderCanvas(img, fullRect, true);
+        } else {
+            renderCanvas(img, { x:0, y:0, w:0, h:0 }, false);
+        }
         
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-        
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const win = getCurrentWindow();
+        win.show();
+        win.setFocus();
       };
-      img.src = screenshot;
-      setUploadedUrl(null);
+      img.src = dataUrl;
+      
+    } catch (e) {
+      console.error(e);
+      alert("Failed to take screenshot.");
     }
-  }, [screenshot]);
+  };
 
-  async function takeScreenshot() {
-    try {
-      const base64 = await invoke<string>("capture_screen");
-      setScreenshot(`data:image/png;base64,${base64}`);
-    } catch (error) {
-      console.error("Capture failed:", error);
-    }
-  }
-
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const renderCanvas = (img: HTMLImageElement, currentCrop: {x:number, y:number, w:number, h:number}, cropped: boolean) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    // Set canvas to fullscreen
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    setIsDrawing(true);
+    // Draw full screenshot
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // If cropped or cropping, darken the rest
+    if (cropped || currentCrop.w > 0) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Clear the cropped area
+      ctx.clearRect(currentCrop.x, currentCrop.y, currentCrop.w, currentCrop.h);
+      
+      // Draw the original image piece back into the cleared area
+      ctx.drawImage(
+        img, 
+        currentCrop.x, currentCrop.y, currentCrop.w, currentCrop.h, // Source
+        currentCrop.x, currentCrop.y, currentCrop.w, currentCrop.h  // Dest
+      );
+      
+      // Add border to crop area
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(currentCrop.x, currentCrop.y, currentCrop.w, currentCrop.h);
+      
+      // If we have a drawing layer, draw it over the crop area
+      if (drawingLayerRef.current) {
+          ctx.drawImage(drawingLayerRef.current, 0, 0);
+      }
+    }
   };
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  // Setup drawing layer
+  useEffect(() => {
+      if (hasCropped && canvasRef.current) {
+          const dl = document.createElement('canvas');
+          dl.width = canvasRef.current.width;
+          dl.height = canvasRef.current.height;
+          drawingLayerRef.current = dl;
+      }
+  }, [hasCropped]);
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  // --- Mouse Handlers ---
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!baseImage) return;
 
-    ctx.lineTo(x, y);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.stroke();
+    if (!hasCropped) {
+      // Start cropping
+      setIsCropping(true);
+      setCropStart({ x: e.clientX, y: e.clientY });
+      setCropRect({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+    } else {
+      // Start drawing ONLY if inside crop area
+      if (e.clientX >= cropRect.x && e.clientX <= cropRect.x + cropRect.w &&
+          e.clientY >= cropRect.y && e.clientY <= cropRect.y + cropRect.h) {
+          setIsDrawing(true);
+          const ctx = drawingLayerRef.current?.getContext('2d');
+          if (ctx) {
+              ctx.beginPath();
+              ctx.moveTo(e.clientX, e.clientY);
+          }
+      }
+    }
   };
 
-  const stopDrawing = () => {
-    if (isDrawing) {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      ctx?.closePath();
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!baseImage) return;
+
+    if (isCropping) {
+      const x = Math.min(e.clientX, cropStart.x);
+      const y = Math.min(e.clientY, cropStart.y);
+      const w = Math.abs(e.clientX - cropStart.x);
+      const h = Math.abs(e.clientY - cropStart.y);
+      const newCrop = { x, y, w, h };
+      setCropRect(newCrop);
+      renderCanvas(baseImage, newCrop, false);
+    } else if (isDrawing && drawingLayerRef.current) {
+      const ctx = drawingLayerRef.current.getContext('2d');
+      if (ctx) {
+          ctx.lineTo(e.clientX, e.clientY);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+          // Re-render main canvas to show drawing
+          renderCanvas(baseImage, cropRect, true);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isCropping) {
+      setIsCropping(false);
+      // Only confirm crop if area is large enough
+      if (cropRect.w > 10 && cropRect.h > 10) {
+          setHasCropped(true);
+      } else {
+          setCropRect({x:0,y:0,w:0,h:0});
+          if(baseImage) renderCanvas(baseImage, {x:0,y:0,w:0,h:0}, false);
+      }
+    } else if (isDrawing) {
       setIsDrawing(false);
     }
   };
 
-  const handleSaveLocally = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `screenshot-${Date.now()}.png`;
-    link.href = dataUrl;
-    link.click();
+  // --- Actions ---
+  const extractCroppedBlob = async (): Promise<Blob | null> => {
+      const c = document.createElement('canvas');
+      c.width = cropRect.w;
+      c.height = cropRect.h;
+      const ctx = c.getContext('2d');
+      if (!ctx || !canvasRef.current) return null;
+      
+      // Extract from main canvas which contains both image and drawings
+      ctx.drawImage(
+          canvasRef.current,
+          cropRect.x, cropRect.y, cropRect.w, cropRect.h,
+          0, 0, cropRect.w, cropRect.h
+      );
+
+      return new Promise(resolve => c.toBlob(resolve, 'image/png'));
   };
 
-  async function uploadScreenshot() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const handleSaveLocally = async () => {
+    const blob = await extractCroppedBlob();
+    if (!blob) return;
+    
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FastShot_${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    resetApp();
+  };
+
+  const uploadScreenshot = async () => {
+    const blob = await extractCroppedBlob();
+    if (!blob) return;
 
     setIsUploading(true);
     try {
-      const dataUrl = canvas.toDataURL('image/png');
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      
       const formData = new FormData();
       formData.append('file', blob, 'screenshot.png');
-
-      const response = await fetch('http://localhost:3000/api/upload', {
+      
+      const res = await fetch('http://localhost:3000/api/upload', {
         method: 'POST',
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         body: formData
       });
 
-      const data = await response.json();
-      
-      if (data.success) {
+      const data = await res.json();
+      if (res.ok) {
         setUploadedUrl(data.url);
         await writeText(data.url);
       } else {
         alert("Upload failed: " + data.error);
       }
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert("Upload failed.");
+    } catch (e: any) {
+      alert("Error: " + e.message);
     } finally {
       setIsUploading(false);
     }
-  }
+  };
 
-  // --- Styles ---
+  // --- UI ---
   const theme = {
-    bg: '#0f172a',
     surface: '#1e293b',
-    surfaceHover: '#334155',
     primary: '#3b82f6',
-    primaryHover: '#2563eb',
     success: '#10b981',
     text: '#f8fafc',
-    textMuted: '#94a3b8',
     border: '#334155',
   };
 
+  if (!screenshot) {
+      return null; // App is hidden
+  }
+
   return (
-    <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', background: theme.bg, color: theme.text, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
       
-      {/* Top Header */}
-      <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${theme.border}`, display: 'flex', gap: '1rem', alignItems: 'center', background: theme.surface }}>
-        <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, background: 'linear-gradient(to right, #60a5fa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          FastShot
-        </h2>
-        
-        <div style={{ flex: 1 }} />
-        
-        <input 
-          type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="Paste Access Token (Optional)"
-          style={{ width: '250px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
-        />
-        <button 
-          onClick={takeScreenshot} 
-          style={{ padding: '0.5rem 1rem', background: theme.primary, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500, transition: 'background 0.2s' }}
-          onMouseOver={e => (e.currentTarget.style.background = theme.primaryHover)}
-          onMouseOut={e => (e.currentTarget.style.background = theme.primary)}
-        >
-          Capture Screen
-        </button>
-      </div>
+      <canvas 
+        ref={canvasRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ 
+            cursor: hasCropped ? 'crosshair' : 'crosshair', 
+            display: 'block' 
+        }}
+      />
 
-      {/* Main Content Area */}
-      {screenshot ? (
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', padding: '1.5rem', gap: '1.5rem', justifyContent: 'center' }}>
-          
-          {/* Canvas Wrapper */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto', borderRadius: '8px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
-            <canvas 
-              ref={canvasRef}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              style={{ cursor: 'crosshair', background: '#000', display: 'block' }}
+      {/* Floating Toolbar (Only shows after cropping) */}
+      {hasCropped && (
+          <div style={{ 
+              position: 'absolute', 
+              top: Math.max(10, cropRect.y), 
+              left: cropRect.x + cropRect.w + 10,
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '0.5rem', 
+              background: theme.surface, 
+              padding: '0.5rem', 
+              borderRadius: '8px', 
+              border: `1px solid ${theme.border}`,
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)'
+          }}>
+            <input 
+                type="color" 
+                value={color} 
+                onChange={e => setColor(e.target.value)} 
+                title="Choose Color"
+                style={{ width: '28px', height: '28px', padding: 0, border: 'none', cursor: 'pointer', borderRadius: '4px' }}
             />
-          </div>
-
-          {/* Floating Right Toolbar */}
-          <div style={{ width: '60px', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', background: theme.surface, padding: '1rem 0.5rem', borderRadius: '12px', border: `1px solid ${theme.border}`, height: 'fit-content', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
             
-            <div style={{ color: theme.textMuted, marginBottom: '0.5rem' }} title="Draw">
-              <PenIcon />
-            </div>
+            <div style={{ width: '100%', height: '1px', background: theme.border, margin: '0.25rem 0' }} />
 
-            {/* Color Picker */}
-            <div style={{ position: 'relative', width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${theme.border}` }}>
-              <input 
-                  type="color" 
-                  value={color} 
-                  onChange={e => setColor(e.target.value)} 
-                  title="Choose Color"
-                  style={{ position: 'absolute', top: '-10px', left: '-10px', width: '56px', height: '56px', padding: 0, border: 'none', cursor: 'pointer' }}
-              />
-            </div>
-            
-            <div style={{ width: '100%', height: '1px', background: theme.border, margin: '0.5rem 0' }} />
-
-            {/* Save Locally */}
-            <button 
-                onClick={handleSaveLocally}
-                title="Save to Computer"
-                style={{ width: '40px', height: '40px', background: 'transparent', border: 'none', borderRadius: '8px', cursor: 'pointer', color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
-                onMouseOver={e => (e.currentTarget.style.background = theme.surfaceHover)}
-                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
-            >
+            <button onClick={handleSaveLocally} title="Save Locally" style={{ width: '32px', height: '32px', background: 'transparent', border: 'none', cursor: 'pointer', color: theme.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <SaveIcon />
             </button>
 
-            {/* Upload */}
-            <button 
-              onClick={uploadScreenshot}
-              disabled={isUploading}
-              title="Upload & Copy Link"
-              style={{ width: '40px', height: '40px', background: theme.success, border: 'none', borderRadius: '8px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: isUploading ? 0.5 : 1, transition: 'opacity 0.2s' }}>
-              <CloudIcon />
+            <button onClick={uploadScreenshot} disabled={isUploading} title="Upload & Copy Link" style={{ width: '32px', height: '32px', background: theme.success, border: 'none', borderRadius: '6px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CloudIcon />
+            </button>
+            <button onClick={resetApp} title="Close" style={{ width: '32px', height: '32px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 'bold' }}>
+                ✕
             </button>
           </div>
-        </div>
-      ) : (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: theme.textMuted, gap: '1rem' }}>
-            <div style={{ padding: '2rem', background: theme.surface, borderRadius: '12px', border: `1px dashed ${theme.border}`, textAlign: 'center' }}>
-              <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Ready to capture</p>
-              <p style={{ margin: 0, fontSize: '0.9rem' }}>Press <kbd style={{ background: theme.bg, padding: '0.2rem 0.4rem', borderRadius: '4px', border: `1px solid ${theme.border}` }}>Ctrl + Shift + S</kbd> to start.</p>
-            </div>
-        </div>
       )}
 
       {/* Success Notification */}
       {uploadedUrl && (
           <div style={{
-              position: 'fixed',
+              position: 'absolute',
               bottom: '24px',
               right: '24px',
               background: theme.surface,
               border: `1px solid ${theme.border}`,
               borderRadius: '12px',
               padding: '20px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
               display: 'flex',
               flexDirection: 'column',
               gap: '16px',
               width: '320px',
-              animation: 'slideIn 0.3s ease-out'
           }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: theme.success, fontWeight: 600 }}>
-                    <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    Upload Successful!
-                  </div>
-                  <button onClick={() => setUploadedUrl(null)} style={{ background: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                  </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: theme.success, fontWeight: 600 }}>
+                  Upload Successful!
+                  <button onClick={resetApp} style={{ background: 'transparent', border: 'none', color: theme.text, cursor: 'pointer' }}>✕</button>
               </div>
-              
-              <div style={{ background: theme.bg, padding: '12px', borderRadius: '8px', border: `1px solid ${theme.border}`, fontSize: '13px', color: theme.text, wordBreak: 'break-all' }}>
-                {uploadedUrl}
-              </div>
-              
               <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => openUrl(uploadedUrl)} style={{ flex: 1, padding: '10px', background: theme.primary, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
-                      Open in Browser
-                  </button>
-                  <button onClick={async () => { await writeText(uploadedUrl); }} style={{ flex: 1, padding: '10px', background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: theme.text, cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
-                      Copy Link
-                  </button>
+                  <button onClick={() => { openUrl(uploadedUrl); resetApp(); }} style={{ flex: 1, padding: '8px', background: theme.primary, border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer' }}>Open</button>
+                  <button onClick={async () => { await writeText(uploadedUrl); resetApp(); }} style={{ flex: 1, padding: '8px', background: theme.surface, border: `1px solid ${theme.border}`, color: 'white', borderRadius: '4px', cursor: 'pointer' }}>Copy</button>
               </div>
           </div>
       )}
