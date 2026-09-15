@@ -7,6 +7,8 @@
     "core:default",
     "opener:default",
     "global-shortcut:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "dialog:default",
+    "fs:default"
   ]
 }
