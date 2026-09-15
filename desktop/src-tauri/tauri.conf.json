@@ -13,9 +13,20 @@
     "windows": [
       {
         "title": "FastShot",
+        "label": "main",
         "width": 1000,
         "height": 700,
         "visible": false
+      },
+      {
+        "title": "FastShot Overlay",
+        "label": "overlay",
+        "fullscreen": true,
+        "transparent": true,
+        "decorations": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {

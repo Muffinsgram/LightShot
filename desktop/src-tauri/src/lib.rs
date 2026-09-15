@@ -26,16 +26,23 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
-            let quit_i = MenuItem::with_id(app, "quit", "Kapat", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Ana Pencereyi Goster", true, None::<&str>)?;
             let crop_i = MenuItem::with_id(app, "crop", "Kirparak Ekran Goruntusu Al", true, None::<&str>)?;
             let full_i = MenuItem::with_id(app, "full", "Tam Ekran Goruntusu Al", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Kapat", true, None::<&str>)?;
             
-            let menu = Menu::with_items(app, &[&crop_i, &full_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_i, &crop_i, &full_i, &quit_i])?;
 
             TrayIconBuilder::new()
                 .menu(&menu)
                 .icon(app.default_window_icon().unwrap().clone())
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            window.show().unwrap();
+                            window.set_focus().unwrap();
+                        }
+                    }
                     "quit" => std::process::exit(0),
                     "crop" => { app.emit("trigger-crop-screenshot", ()).unwrap(); }
                     "full" => { app.emit("trigger-full-screenshot", ()).unwrap(); }
@@ -44,6 +51,13 @@ pub fn run() {
                 .build(app)?;
 
             Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                api.prevent_close();
+                window.hide().unwrap();
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![capture_screen])
         .run(tauri::generate_context!())
