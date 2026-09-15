@@ -77,6 +77,7 @@ export default function App() {
   const [screenshotData, setScreenshotData] = useState<string | null>(null);
   const [croppedImage, setCroppedImage] = useState<string | null>(null);
   const [token, setToken] = useState('');
+  const [serverUrl, setServerUrl] = useState('http://localhost:3000');
   const [toast, setToast] = useState<string | null>(null);
 
   // Cropping state
@@ -107,9 +108,10 @@ export default function App() {
       try {
         const store = await load('settings.json', { autoSave: false });
         const savedToken = await store.get<{ value: string }>('api_token');
-        if (savedToken) {
-          setToken(savedToken.value);
-        }
+        if (savedToken) setToken(savedToken.value);
+        
+        const savedUrl = await store.get<{ value: string }>('server_url');
+        if (savedUrl) setServerUrl(savedUrl.value);
       } catch (e) {
         console.error('Failed to load store', e);
       }
@@ -144,6 +146,17 @@ export default function App() {
       await store.save();
     } catch (e) {
       console.error('Failed to save token', e);
+    }
+  };
+
+  const handleServerUrlChange = async (newUrl: string) => {
+    setServerUrl(newUrl);
+    try {
+      const store = await load('settings.json', { autoSave: false });
+      await store.set('server_url', { value: newUrl });
+      await store.save();
+    } catch (e) {
+      console.error('Failed to save url', e);
     }
   };
 
@@ -334,7 +347,7 @@ export default function App() {
       try {
         const fd = new FormData();
         fd.append('file', blob, 'screenshot.png');
-        const res = await fetch('http://localhost:3000/api/upload', {
+        const res = await fetch(`${serverUrl}/api/upload`, {
           method: 'POST',
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
           body: fd
@@ -410,8 +423,11 @@ export default function App() {
           {t.appName}
         </h2>
         <div style={{ flex: 1 }} />
+        <input type="text" value={serverUrl} onChange={(e) => handleServerUrlChange(e.target.value)} placeholder="Server URL"
+          style={{ width: '180px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
+        />
         <input type="password" value={token} onChange={(e) => handleTokenChange(e.target.value)} placeholder={t.tokenPlaceholder}
-          style={{ width: '220px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
+          style={{ width: '180px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
         />
         <button onClick={startNewCrop} style={{ padding: '0.5rem 1rem', background: theme.surfaceHover, color: 'white', border: `1px solid ${theme.border}`, borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
           {t.cropBtn}
