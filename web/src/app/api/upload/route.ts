@@ -6,6 +6,16 @@ import crypto from 'crypto'
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 function generateSecureToken(length = 12) {
   return crypto.randomBytes(length).toString('base64url').substring(0, length);
 }
@@ -45,15 +55,15 @@ export async function POST(request: Request) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return NextResponse.json({ error: 'No file provided' }, { status: 400, headers: corsHeaders });
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File size exceeds limit' }, { status: 400 });
+      return NextResponse.json({ error: 'File size exceeds limit' }, { status: 400, headers: corsHeaders });
     }
 
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid file type' }, { status: 400, headers: corsHeaders });
     }
 
     const fileBuffer = await file.arrayBuffer();
@@ -115,7 +125,7 @@ export async function POST(request: Request) {
 
     if (storageError) {
       console.error('Storage error:', storageError);
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+      return NextResponse.json({ error: 'Upload failed' }, { status: 500, headers: corsHeaders });
     }
 
     // Insert metadata (use admin client to bypass RLS)
@@ -134,7 +144,7 @@ export async function POST(request: Request) {
       console.error('Database error:', dbError);
       // Attempt rollback
       await adminSupabase.storage.from('screenshots').remove([storagePath]);
-      return NextResponse.json({ error: 'Upload failed to save metadata' }, { status: 500 });
+      return NextResponse.json({ error: 'Upload failed to save metadata' }, { status: 500, headers: corsHeaders });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -143,10 +153,10 @@ export async function POST(request: Request) {
       success: true,
       url: `${appUrl}/s/${publicToken}`,
       token: publicToken
-    });
+    }, { headers: corsHeaders });
 
   } catch (error) {
     console.error('Unexpected error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: corsHeaders });
   }
 }
