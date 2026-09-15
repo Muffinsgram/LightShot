@@ -44,12 +44,38 @@ export async function POST(request: Request) {
 
     // Check authorization header first (for desktop app)
     const authHeader = request.headers.get('Authorization');
+    let userId = null;
+    let tier = 'free';
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.split(' ')[1];
-        await supabase.auth.setSession({ access_token: token, refresh_token: '' });
+        
+        // Use admin client to check API key in profiles table
+        const { createClient } = await import('@supabase/supabase-js');
+        const adminSupabaseAuth = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+        
+        const { data: profileData } = await adminSupabaseAuth
+            .from('profiles')
+            .select('user_id, tier')
+            .eq('api_key', token)
+            .single();
+            
+        if (profileData) {
+            userId = profileData.user_id;
+            tier = profileData.tier || 'free';
+        } else {
+            // Fallback: try as a normal JWT
+            await supabase.auth.setSession({ access_token: token, refresh_token: '' });
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) userId = user.id;
+        }
+    } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) userId = user.id;
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -75,19 +101,11 @@ export async function POST(request: Request) {
     expiresAt.setDate(expiresAt.getDate() + 7);
     
     // Determine path based on user or anonymous
-    const userIdFolder = user ? user.id : 'anonymous';
+    const userIdFolder = userId ? userId : 'anonymous';
     const storagePath = `${userIdFolder}/${publicToken}.${fileExt}`;
 
     // If user is logged in, check their tier
-    if (user) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('tier')
-            .eq('user_id', user.id)
-            .single();
-            
-        const tier = profile?.tier || 'free';
-        
+    if (userId) {
         if (tier === 'unlimited') {
             expiresAt = null; // Never expires
         } else if (tier === 'pro') {
@@ -132,7 +150,7 @@ export async function POST(request: Request) {
     const { error: dbError } = await adminSupabase
       .from('screenshots')
       .insert({
-        user_id: user ? user.id : null,
+        user_id: userId,
         storage_path: storagePath,
         public_token: publicToken,
         file_size: file.size,

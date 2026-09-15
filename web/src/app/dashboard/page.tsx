@@ -20,6 +20,12 @@ export default async function Dashboard() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('api_key')
+    .eq('user_id', user.id)
+    .single()
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       
@@ -60,6 +66,28 @@ export default async function Dashboard() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold">Your Screenshots</h2>
           <p className="text-gray-500 mt-1">Manage and view all your uploaded captures.</p>
+        </div>
+
+        {/* API Key Section */}
+        <div className="mb-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                    🔑 Masaüstü Erişim Anahtarı (Desktop Token)
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    Bu anahtarı kopyalayıp masaüstü uygulamasındaki "Erişim Anahtarı" bölümüne yapıştır. 
+                    Böylece yüklediğin tüm SS'ler otomatik olarak bu panele düşer!
+                </p>
+            </div>
+            {profile?.api_key ? (
+                <div className="flex items-center gap-2 bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <code className="text-sm font-mono text-gray-700 dark:text-gray-300 select-all px-2">
+                        {profile.api_key}
+                    </code>
+                </div>
+            ) : (
+                <p className="text-sm text-gray-500">Profil anahtarı yüklenemedi.</p>
+            )}
         </div>
 
         {screenshots?.length === 0 ? (
