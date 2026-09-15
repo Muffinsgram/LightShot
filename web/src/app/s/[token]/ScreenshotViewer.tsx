@@ -13,15 +13,17 @@ export function ScreenshotViewer({
   screenshotId,
   storagePath,
   isOwner,
-  viewsCount
+  viewsCount,
+  initialDescription
 }: { 
   token: string, 
   initialSignedUrl: string | null, 
   hasPassword: boolean,
   screenshotId: string,
   storagePath: string,
-  isOwner: boolean,
-  viewsCount: number
+  isOwner?: boolean,
+  viewsCount: number,
+  initialDescription?: string | null
 }) {
   const router = useRouter()
   const [signedUrl, setSignedUrl] = useState<string | null>(initialSignedUrl)
@@ -31,6 +33,7 @@ export function ScreenshotViewer({
   // Settings state
   const [newPassword, setNewPassword] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [description, setDescription] = useState(initialDescription || '')
   const [isEditing, setIsEditing] = useState(false)
 
   async function handleUnlock(e: React.FormEvent) {
@@ -44,10 +47,13 @@ export function ScreenshotViewer({
     }
   }
 
-  async function setExpiration(hours: number | null) {
+  async function setExpiration(hours: number) {
       const res = await updateScreenshotSettings(screenshotId, token, { expires_in_hours: hours })
       if (res.error) alert(res.error)
-      else alert('Expiration updated!')
+      else {
+          alert('Expiration updated!')
+          router.refresh()
+      }
   }
 
   async function setPass() {
@@ -168,6 +174,28 @@ export function ScreenshotViewer({
                     </div>
                   </div>
               </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">Description (Notes for viewers):</p>
+                <div className="flex flex-col gap-2">
+                    <textarea 
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        placeholder="Add a description or note..." 
+                        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-sm text-white min-h-[80px]"
+                    />
+                    <button onClick={async () => {
+                        const res = await updateScreenshotSettings(screenshotId, token, { description })
+                        if (res.error) alert(res.error)
+                        else {
+                            alert('Description updated!')
+                            router.refresh()
+                        }
+                    }} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm text-white self-end">
+                        Save Description
+                    </button>
+                </div>
+              </div>
               
               <div className="mt-4 pt-4 border-t border-gray-700 flex justify-end">
                   <button 
@@ -193,6 +221,12 @@ export function ScreenshotViewer({
           className="object-contain max-h-[80vh] w-auto h-auto"
         />
       </div>
+
+      {description && (
+        <div className="w-full max-w-5xl bg-gray-800 border border-gray-700 p-6 rounded-xl mt-4 text-gray-200 whitespace-pre-wrap">
+          {description}
+        </div>
+      )}
     </div>
   )
 }

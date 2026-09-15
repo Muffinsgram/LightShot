@@ -68,6 +68,7 @@ export default async function ScreenshotPage({
         storagePath={screenshot.storage_path}
         isOwner={isOwner}
         viewsCount={screenshot.views_count || 0}
+        initialDescription={screenshot.description}
       />
         
       <div className="text-gray-500 text-sm mt-6">

@@ -32,7 +32,7 @@ export async function verifyScreenshotPassword(token: string, passwordAttempt: s
   return { signedUrl }
 }
 
-export async function updateScreenshotSettings(id: string, token: string, updates: { expires_in_hours?: number | null, password?: string | null }) {
+export async function updateScreenshotSettings(id: string, token: string, updates: { expires_in_hours?: number | null, password?: string | null, description?: string | null }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
@@ -64,6 +64,10 @@ export async function updateScreenshotSettings(id: string, token: string, update
       } else {
           payload.password_hash = hashPassword(updates.password)
       }
+  }
+  
+  if (updates.description !== undefined) {
+      payload.description = updates.description
   }
 
   const { error } = await supabase.from('screenshots').update(payload).eq('id', id)

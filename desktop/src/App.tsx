@@ -6,6 +6,7 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeFile } from '@tauri-apps/plugin-fs';
+import { load } from '@tauri-apps/plugin-store';
 
 // ============ i18n ============
 const translations = {
@@ -102,6 +103,17 @@ export default function App() {
 
   useEffect(() => {
     const setup = async () => {
+      // Load store
+      try {
+        const store = await load('settings.json', { autoSave: false });
+        const savedToken = await store.get<{ value: string }>('api_token');
+        if (savedToken) {
+          setToken(savedToken.value);
+        }
+      } catch (e) {
+        console.error('Failed to load store', e);
+      }
+
       await listen<string>('screenshot-taken', async (event) => {
         const dataUrl = `data:image/png;base64,${event.payload}`;
         setScreenshotData(dataUrl);
@@ -123,6 +135,17 @@ export default function App() {
     };
     setup();
   }, []);
+
+  const handleTokenChange = async (newToken: string) => {
+    setToken(newToken);
+    try {
+      const store = await load('settings.json', { autoSave: false });
+      await store.set('api_token', { value: newToken });
+      await store.save();
+    } catch (e) {
+      console.error('Failed to save token', e);
+    }
+  };
 
   // Load screenshot into crop canvas
   useEffect(() => {
@@ -370,7 +393,7 @@ export default function App() {
           {t.appName}
         </h2>
         <div style={{ flex: 1 }} />
-        <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={t.tokenPlaceholder}
+        <input type="password" value={token} onChange={(e) => handleTokenChange(e.target.value)} placeholder={t.tokenPlaceholder}
           style={{ width: '220px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
         />
         <button onClick={startNewCrop} style={{ padding: '0.5rem 1rem', background: theme.surfaceHover, color: 'white', border: `1px solid ${theme.border}`, borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
