@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { login, signup } from './actions'
 import Link from 'next/link'
 import { Mail, Lock, ArrowRight, Camera, Eye, EyeOff } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams()
   const message = searchParams.get('message')
   const [isLogin, setIsLogin] = useState(true)
@@ -141,5 +141,13 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   )
 }
