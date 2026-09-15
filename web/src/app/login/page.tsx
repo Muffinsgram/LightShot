@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { login, signup, loginWithMagicLink } from './actions'
+import { login, signup, loginWithGoogle } from './actions'
 import Link from 'next/link'
 import { Mail, Lock, ArrowRight, Camera } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
