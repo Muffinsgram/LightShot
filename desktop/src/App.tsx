@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { register } from '@tauri-apps/plugin-global-shortcut';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
-import { open } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 // Icons as SVG components for better styling
 const PenIcon = () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>;
@@ -19,12 +19,12 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState("#ef4444"); // Default red
-  const [lineWidth, setLineWidth] = useState(3);
+  const lineWidth = 3;
   
   useEffect(() => {
     async function setupShortcut() {
       try {
-        await register('CommandOrControl+Shift+S', async (event) => {
+        await register('CommandOrControl+Shift+S', async (event: any) => {
           if (event.state === 'Pressed') {
             await takeScreenshot();
           }
@@ -299,7 +299,7 @@ export default function App() {
               </div>
               
               <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => open(uploadedUrl)} style={{ flex: 1, padding: '10px', background: theme.primary, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
+                  <button onClick={() => openUrl(uploadedUrl)} style={{ flex: 1, padding: '10px', background: theme.primary, border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
                       Open in Browser
                   </button>
                   <button onClick={async () => { await writeText(uploadedUrl); }} style={{ flex: 1, padding: '10px', background: theme.bg, border: `1px solid ${theme.border}`, borderRadius: '6px', color: theme.text, cursor: 'pointer', fontWeight: 500, fontSize: '13px' }}>
