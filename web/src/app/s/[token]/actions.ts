@@ -73,3 +73,6 @@ export async function updateScreenshotSettings(id: string, token: string, update
   revalidatePath(`/s/${token}`)
   return { success: true }
 }
+  
+export async function updateScreenshotImage(storagePath: string, formData: FormData) {  
+  const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return { error: 'Unauthorized' }; const file = formData.get('file') as File; if (!file) return { error: 'No file' }; const supabaseAdmin = createAdminClient(); const { error } = await supabaseAdmin.storage.from('screenshots').upload(storagePath, file, { upsert: true, cacheControl: '0' }); if (error) return { error: error.message }; return { success: true }; } 

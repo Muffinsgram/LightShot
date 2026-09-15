@@ -179,7 +179,7 @@ export default function App() {
       {/* Top Header */}
       <div style={{ padding: '1rem 1.5rem', borderBottom: `1px solid ${theme.border}`, display: 'flex', gap: '1rem', alignItems: 'center', background: theme.surface }}>
         <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, background: 'linear-gradient(to right, #60a5fa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          LightShot Clone
+          FastShot
         </h2>
         
         <div style={{ flex: 1 }} />

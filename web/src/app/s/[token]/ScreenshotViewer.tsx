@@ -1,8 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { verifyScreenshotPassword, updateScreenshotSettings } from './actions'
+import { useState } from 'react'
+import { verifyScreenshotPassword, updateScreenshotSettings, updateScreenshotImage } from './actions'
 import { deleteScreenshot } from '../../dashboard/actions'
+import { CanvasEditor } from './CanvasEditor'
+import { useRouter } from 'next/navigation'
 
 export function ScreenshotViewer({ 
   token, 
@@ -10,15 +13,18 @@ export function ScreenshotViewer({
   hasPassword, 
   screenshotId,
   storagePath,
-  isOwner 
+  isOwner,
+  viewsCount
 }: { 
   token: string, 
   initialSignedUrl: string | null, 
   hasPassword: boolean,
   screenshotId: string,
   storagePath: string,
-  isOwner: boolean
+  isOwner: boolean,
+  viewsCount: number
 }) {
+  const router = useRouter()
   const [signedUrl, setSignedUrl] = useState<string | null>(initialSignedUrl)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -26,6 +32,7 @@ export function ScreenshotViewer({
   // Settings state
   const [newPassword, setNewPassword] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   async function handleUnlock(e: React.FormEvent) {
     e.preventDefault()
@@ -36,12 +43,6 @@ export function ScreenshotViewer({
     } else if (res.signedUrl) {
       setSignedUrl(res.signedUrl)
     }
-  }
-
-  async function handleUpdateSettings(e: React.FormEvent) {
-      e.preventDefault()
-      // We can add simple UI for this, let's say they just type password.
-      // Expiration time logic is handled below.
   }
 
   async function setExpiration(hours: number | null) {
@@ -56,6 +57,20 @@ export function ScreenshotViewer({
       else {
           alert('Password updated!')
           setNewPassword('')
+      }
+  }
+
+  async function handleSaveEditedImage(blob: Blob) {
+      const formData = new FormData()
+      formData.append('file', blob, 'edited.png')
+      const res = await updateScreenshotImage(storagePath, formData)
+      if (res.error) alert(res.error)
+      else {
+          alert('Image updated successfully!')
+          setIsEditing(false)
+          // Add random query string to bust browser cache
+          setSignedUrl(signedUrl + '&t=' + Date.now())
+          router.refresh()
       }
   }
 
@@ -81,14 +96,29 @@ export function ScreenshotViewer({
     )
   }
 
+  if (isEditing && signedUrl) {
+      return <CanvasEditor imageUrl={signedUrl} onSave={handleSaveEditedImage} onCancel={() => setIsEditing(false)} />
+  }
+
   return (
     <div className="w-full flex flex-col items-center gap-6">
-      <div className="w-full flex justify-between gap-4 max-w-5xl items-center">
-        {isOwner && (
-          <button onClick={() => setShowSettings(!showSettings)} className="text-sm text-gray-400 hover:text-white transition-colors">
-            ⚙️ Manage Screenshot
-          </button>
-        )}
+      <div className="w-full flex justify-between gap-4 max-w-5xl items-center flex-wrap">
+        <div className="flex gap-4 items-center">
+            {isOwner && (
+              <>
+                <button onClick={() => setShowSettings(!showSettings)} className="text-sm text-gray-400 hover:text-white transition-colors">
+                    ⚙️ Manage Screenshot
+                </button>
+                <button onClick={() => setIsEditing(true)} className="text-sm text-gray-400 hover:text-white transition-colors">
+                    ✏️ Web Editor
+                </button>
+              </>
+            )}
+            <div className="flex items-center gap-1 text-sm text-gray-500 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                {viewsCount} views
+            </div>
+        </div>
         <div className="flex gap-4 ml-auto">
           <a
             href={signedUrl!}

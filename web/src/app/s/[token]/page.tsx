@@ -52,6 +52,11 @@ export default async function ScreenshotPage({
     signedUrl = data?.signedUrl || null
   }
 
+  // Increment view counter securely (doesn't block render)
+  if (!isOwner) {
+     supabaseAdmin.rpc('increment_view', { screenshot_id: screenshot.id }).then()
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4">
       
@@ -62,6 +67,7 @@ export default async function ScreenshotPage({
         screenshotId={screenshot.id}
         storagePath={screenshot.storage_path}
         isOwner={isOwner}
+        viewsCount={screenshot.views_count || 0}
       />
         
       <div className="text-gray-500 text-sm mt-6">

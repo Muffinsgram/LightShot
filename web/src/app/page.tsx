@@ -7,7 +7,7 @@ export default function Home() {
       <nav className="flex items-center justify-between p-6 lg:px-8 max-w-7xl mx-auto w-full">
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5 flex items-center gap-2">
-            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">LightShot Clone</span>
+            <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">FastShot</span>
           </Link>
         </div>
         <div className="flex gap-4">
@@ -53,9 +53,9 @@ export default function Home() {
                 We believe in privacy and cleanliness. Your screenshots are automatically deleted based on your plan. No digital clutter.
               </p>
             </div>
-            
+
             <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 gap-y-6 sm:mt-20 lg:max-w-4xl lg:grid-cols-3 lg:gap-8">
-              
+
               {/* Anonymous Tier */}
               <div className="flex flex-col justify-between rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-xl ring-1 ring-gray-200 dark:ring-gray-700 sm:p-10">
                 <div>
@@ -118,9 +118,9 @@ export default function Home() {
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-6">Start sharing in seconds</h2>
               <p className="text-lg leading-8 text-gray-600 dark:text-gray-400 mb-10">
-                Download the desktop application, press <kbd className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md border dark:border-gray-700 text-sm">Ctrl + Shift + S</kbd> to capture your screen, and the link will be automatically copied to your clipboard.
+                Download the desktop application, press <kbd className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md border dark:border-gray-700 text-sm">PrtScr</kbd> to capture your screen, and the link will be automatically copied to your clipboard.
               </p>
-              
+
               <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 flex flex-col items-center">
                 <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4">
                   <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -138,7 +138,7 @@ export default function Home() {
 
       <footer className="bg-white dark:bg-gray-950 py-10 border-t border-gray-100 dark:border-gray-900 mt-auto">
         <div className="mx-auto max-w-7xl px-6 lg:px-8 text-center text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} LightShot Clone. All rights reserved.
+          &copy; {new Date().getFullYear()} FastShot. All rights reserved.
         </div>
       </footer>
     </div>
