@@ -1,12 +1,11 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "desktop",
+  "$schema": "https://raw.githubusercontent.com/nicehash/tauri/refs/heads/v2/crates/tauri-utils/schema.json",
+  "productName": "FastShot",
   "version": "0.1.0",
-  "identifier": "com.emirh.desktop",
+  "identifier": "com.fastshot.desktop",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
   "app": {
@@ -17,16 +16,6 @@
         "width": 1000,
         "height": 700,
         "visible": false
-      },
-      {
-        "title": "FastShot Overlay",
-        "label": "overlay",
-        "fullscreen": true,
-        "transparent": true,
-        "decorations": false,
-        "visible": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true
       }
     ],
     "security": {
