@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useState } from 'react'
 import { verifyScreenshotPassword, updateScreenshotSettings, updateScreenshotImage } from './actions'
 import { deleteScreenshot } from '../../dashboard/actions'
 import { CanvasEditor } from './CanvasEditor'
