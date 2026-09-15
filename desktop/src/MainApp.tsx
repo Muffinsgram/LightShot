@@ -67,8 +67,6 @@ export default function MainApp() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // We do NOT scale down the canvas logical size, we keep original pixels for best quality!
-    // The CSS max-width/max-height will scale it visually.
     canvas.width = img.width;
     canvas.height = img.height;
     ctx.drawImage(img, 0, 0);
@@ -80,7 +78,6 @@ export default function MainApp() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      // Calculate logical coordinates accounting for CSS scaling
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
@@ -105,7 +102,7 @@ export default function MainApp() {
       
       ctx.lineTo(x, y);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 4 * scaleX; // Scale line width too
+      ctx.lineWidth = 4 * scaleX;
       ctx.lineCap = 'round';
       ctx.stroke();
     }
@@ -172,6 +169,14 @@ export default function MainApp() {
           placeholder="Paste Access Token (Optional)"
           style={{ width: '250px', padding: '0.5rem 1rem', background: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: '6px', fontSize: '14px', outline: 'none' }}
         />
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={() => emit('trigger-crop-screenshot')} style={{ padding: '0.5rem 1rem', background: theme.surfaceHover, color: 'white', border: `1px solid ${theme.border}`, borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+            Crop Screen
+          </button>
+          <button onClick={() => emit('trigger-full-screenshot')} style={{ padding: '0.5rem 1rem', background: theme.primary, color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}>
+            Full Screen
+          </button>
+        </div>
       </div>
 
       {screenshot ? (
