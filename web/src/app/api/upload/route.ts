@@ -87,8 +87,26 @@ export async function POST(request: Request) {
         }
     }
 
-    // Upload to storage
-    const { error: storageError } = await supabase.storage
+    // Use service role client for storage (has full access to create buckets & upload)
+    const { createClient } = await import('@supabase/supabase-js');
+    const adminSupabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Ensure the bucket exists
+    const { data: buckets } = await adminSupabase.storage.listBuckets();
+    const bucketExists = buckets?.some((b: any) => b.id === 'screenshots');
+    if (!bucketExists) {
+      await adminSupabase.storage.createBucket('screenshots', {
+        public: true,
+        fileSizeLimit: 10485760,
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'],
+      });
+    }
+
+    // Upload to storage using admin client
+    const { error: storageError } = await adminSupabase.storage
       .from('screenshots')
       .upload(storagePath, fileBuffer, {
         contentType: file.type,
@@ -100,8 +118,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
 
-    // Insert metadata
-    const { error: dbError } = await supabase
+    // Insert metadata (use admin client to bypass RLS)
+    const { error: dbError } = await adminSupabase
       .from('screenshots')
       .insert({
         user_id: user ? user.id : null,
@@ -115,7 +133,7 @@ export async function POST(request: Request) {
     if (dbError) {
       console.error('Database error:', dbError);
       // Attempt rollback
-      await supabase.storage.from('screenshots').remove([storagePath]);
+      await adminSupabase.storage.from('screenshots').remove([storagePath]);
       return NextResponse.json({ error: 'Upload failed to save metadata' }, { status: 500 });
     }
 
