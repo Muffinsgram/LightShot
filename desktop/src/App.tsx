@@ -87,27 +87,30 @@ export default function App() {
       setScreenshot(dataUrl);
 
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         setBaseImage(img);
         
-        if (isFull) {
-            setHasCropped(true);
-            const fullRect = { x: 0, y: 0, w: window.innerWidth, h: window.innerHeight };
-            setCropRect(fullRect);
-            renderCanvas(img, fullRect, true);
-        } else {
-            renderCanvas(img, { x:0, y:0, w:0, h:0 }, false);
-        }
-        
         const win = getCurrentWindow();
-        win.show();
-        win.setFocus();
+        await win.show();
+        await win.setFocus();
+        
+        // Wait a tiny bit to ensure window is fully visible and rendered
+        setTimeout(() => {
+            if (isFull) {
+                setHasCropped(true);
+                const fullRect = { x: 0, y: 0, w: window.screen.width, h: window.screen.height };
+                setCropRect(fullRect);
+                renderCanvas(img, fullRect, true);
+            } else {
+                renderCanvas(img, { x:0, y:0, w:0, h:0 }, false);
+            }
+        }, 50);
       };
       img.src = dataUrl;
       
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to take screenshot.");
+      try { await writeText("Error taking screenshot: " + String(e)); } catch(err){}
     }
   };
 
@@ -117,9 +120,9 @@ export default function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas to fullscreen
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    // Set canvas to fullscreen (using screen to avoid 0 dimensions when hidden)
+    canvas.width = window.screen.width;
+    canvas.height = window.screen.height;
 
     // Draw full screenshot
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
