@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+src-tauri/target
+.env
+.env.local
+.DS_Store
+LightShot-SourceCode.zip
+LightShot-Source.zip
