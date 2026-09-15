@@ -38,7 +38,8 @@ export default function App() {
   useEffect(() => {
     const setup = async () => {
       try {
-        await register('Super+Shift+K', async (e: any) => { if (e.state === 'Pressed') takeScreenshot(false); });
+        await register('PrintScreen', async (e: any) => { if (e.state === 'Pressed') takeScreenshot(false); });
+        // Fallback for laptops that require Fn+PrtScn or other combos
         await register('CommandOrControl+Shift+K', async (e: any) => { if (e.state === 'Pressed') takeScreenshot(false); });
       } catch (e) { console.error(e); }
 
@@ -301,7 +302,7 @@ export default function App() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: theme.textMuted, gap: '1rem' }}>
             <div style={{ padding: '2rem', background: theme.surface, borderRadius: '12px', border: `1px dashed ${theme.border}`, textAlign: 'center' }}>
               <p style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>Ready to capture</p>
-              <p style={{ margin: 0, fontSize: '0.9rem' }}>Press <kbd style={{ background: theme.bg, padding: '0.2rem 0.4rem', borderRadius: '4px', border: `1px solid ${theme.border}` }}>Win + Shift + K</kbd> to start.</p>
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>Press <kbd style={{ background: theme.bg, padding: '0.2rem 0.4rem', borderRadius: '4px', border: `1px solid ${theme.border}` }}>Print Screen</kbd> to start.</p>
             </div>
         </div>
       )}
