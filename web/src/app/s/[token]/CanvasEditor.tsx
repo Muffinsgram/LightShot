@@ -26,12 +26,9 @@ export function CanvasEditor({
     img.crossOrigin = "anonymous" // in case signed URL
     img.onload = () => {
       // Scale down if image is too large for window
-      const maxWidth = window.innerWidth - 100
-      const maxHeight = window.innerHeight - 200
-      const scale = Math.min(1, maxWidth / img.width, maxHeight / img.height)
-      
-      canvas.width = img.width * scale
-      canvas.height = img.height * scale
+      // Set actual internal resolution to image original resolution
+      canvas.width = img.width
+      canvas.height = img.height
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
     }
     img.src = imageUrl
@@ -41,8 +38,10 @@ export function CanvasEditor({
     const canvas = canvasRef.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
     const rect = canvas.getBoundingClientRect()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
     ctx.beginPath()
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top)
+    ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY)
     setIsDrawing(true)
   }
 
@@ -51,9 +50,11 @@ export function CanvasEditor({
     const canvas = canvasRef.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
     const rect = canvas.getBoundingClientRect()
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top)
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY)
     ctx.strokeStyle = color
-    ctx.lineWidth = lineWidth
+    ctx.lineWidth = lineWidth * scaleX // scale line width too
     ctx.lineCap = 'round'
     ctx.stroke()
   }
@@ -99,7 +100,7 @@ export function CanvasEditor({
           onMouseMove={draw}
           onMouseUp={stopDrawing}
           onMouseLeave={stopDrawing}
-          className="cursor-crosshair block"
+          className="cursor-crosshair max-w-full max-h-[75vh] object-contain touch-none"
         />
       </div>
     </div>

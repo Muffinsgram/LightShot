@@ -8,8 +8,16 @@
     "opener:default",
     "global-shortcut:default",
     "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-write-html",
+    "clipboard-manager:allow-read-text",
     "dialog:default",
+    "dialog:allow-save",
     "fs:default",
-    "store:default"
+    "fs:allow-write-file",
+    "store:default",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-save"
   ]
 }
