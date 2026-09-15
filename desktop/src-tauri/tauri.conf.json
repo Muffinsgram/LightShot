@@ -13,12 +13,9 @@
     "windows": [
       {
         "title": "FastShot",
-        "fullscreen": true,
-        "transparent": true,
-        "decorations": false,
-        "visible": false,
-        "alwaysOnTop": true,
-        "skipTaskbar": true
+        "width": 1000,
+        "height": 700,
+        "visible": false
       }
     ],
     "security": {
