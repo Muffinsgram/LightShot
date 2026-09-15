@@ -5,6 +5,7 @@ import { verifyScreenshotPassword, updateScreenshotSettings, updateScreenshotIma
 import { deleteScreenshot } from '../../dashboard/actions'
 import { CanvasEditor } from './CanvasEditor'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 
 export function ScreenshotViewer({ 
   token, 
@@ -48,32 +49,39 @@ export function ScreenshotViewer({
   }
 
   async function setExpiration(hours: number) {
-      const res = await updateScreenshotSettings(screenshotId, token, { expires_in_hours: hours })
-      if (res.error) alert(res.error)
-      else {
-          alert('Expiration updated!')
-          router.refresh()
-      }
+      const promise = updateScreenshotSettings(screenshotId, token, { expires_in_hours: hours })
+      toast.promise(promise, {
+          loading: 'Updating expiration...',
+          success: 'Expiration updated!',
+          error: 'Failed to update expiration'
+      })
+      const res = await promise
+      if (!res.error) router.refresh()
   }
 
   async function setPass() {
-      const res = await updateScreenshotSettings(screenshotId, token, { password: newPassword })
-      if (res.error) alert(res.error)
-      else {
-          alert('Password updated!')
-          setNewPassword('')
-      }
+      const promise = updateScreenshotSettings(screenshotId, token, { password: newPassword })
+      toast.promise(promise, {
+          loading: 'Updating password...',
+          success: 'Password updated!',
+          error: 'Failed to update password'
+      })
+      const res = await promise
+      if (!res.error) setNewPassword('')
   }
 
   async function handleSaveEditedImage(blob: Blob) {
       const formData = new FormData()
       formData.append('file', blob, 'edited.png')
-      const res = await updateScreenshotImage(storagePath, formData)
-      if (res.error) alert(res.error)
-      else {
-          alert('Image updated successfully!')
+      const promise = updateScreenshotImage(storagePath, formData)
+      toast.promise(promise, {
+          loading: 'Saving image...',
+          success: 'Image updated successfully!',
+          error: 'Failed to update image'
+      })
+      const res = await promise
+      if (!res.error) {
           setIsEditing(false)
-          // Add random query string to bust browser cache
           setSignedUrl(signedUrl + '&t=' + Date.now())
           router.refresh()
       }
@@ -137,7 +145,7 @@ export function ScreenshotViewer({
           <button 
              onClick={() => {
                 navigator.clipboard.writeText(signedUrl!)
-                alert("Image URL copied!")
+                toast.success("Image URL copied!")
              }}
              className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors text-sm font-medium border border-gray-700"
           >
@@ -185,12 +193,14 @@ export function ScreenshotViewer({
                         className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-sm text-white min-h-[80px]"
                     />
                     <button onClick={async () => {
-                        const res = await updateScreenshotSettings(screenshotId, token, { description })
-                        if (res.error) alert(res.error)
-                        else {
-                            alert('Description updated!')
-                            router.refresh()
-                        }
+                        const promise = updateScreenshotSettings(screenshotId, token, { description })
+                        toast.promise(promise, {
+                            loading: 'Saving description...',
+                            success: 'Description updated!',
+                            error: 'Failed to update description'
+                        })
+                        const res = await promise
+                        if (!res.error) router.refresh()
                     }} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-sm text-white self-end">
                         Save Description
                     </button>

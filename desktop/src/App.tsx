@@ -286,18 +286,26 @@ export default function App() {
   // --- ACTIONS ---
   const handleSave = async () => {
     if (!editCanvasRef.current) return;
-    const filePath = await save({
-      defaultPath: `FastShot_${Date.now()}.png`,
-      filters: [{ name: 'PNG Image', extensions: ['png'] }],
-    });
-    if (!filePath) return;
+    try {
+      const filePath = await save({
+        defaultPath: `FastShot_${Date.now()}.png`,
+        filters: [{ name: 'PNG Image', extensions: ['png'] }],
+      });
+      if (!filePath) return;
 
-    editCanvasRef.current.toBlob(async (blob) => {
-      if (!blob) return;
-      const buffer = await blob.arrayBuffer();
-      await writeFile(filePath, new Uint8Array(buffer));
+      const dataUrl = editCanvasRef.current.toDataURL('image/png');
+      const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+      const binaryString = window.atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      await writeFile(filePath, bytes);
       showToast(t.savedAs);
-    }, 'image/png');
+    } catch (e: any) {
+      alert("Save failed: " + (e.message || String(e)));
+    }
   };
 
   const handleCopy = async () => {
@@ -331,11 +339,20 @@ export default function App() {
           headers: token ? { 'Authorization': `Bearer ${token}` } : {},
           body: fd
         });
+        
         const data = await res.json();
-        if (res.ok) { setUploadedUrl(data.url); await writeText(data.url); }
-        else alert("Upload failed: " + data.error);
-      } catch (e: any) { alert("Error: " + e.message); }
-      finally { setIsUploading(false); }
+        
+        if (res.ok) { 
+            setUploadedUrl(data.url); 
+            await writeText(data.url); 
+        } else {
+            alert("Upload failed: " + (data.error || JSON.stringify(data)));
+        }
+      } catch (e: any) { 
+          alert("Error: " + (e.message || String(e))); 
+      } finally { 
+          setIsUploading(false); 
+      }
     }, 'image/png');
   };
 
